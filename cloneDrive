@@ -1,0 +1,30 @@
+# Set source and destination drives
+$sourceDrive = "D:\"
+$destinationDrive = "E:\"
+
+# Get the total size of the source drive data
+$totalSize = (Get-ChildItem -Path $sourceDrive -Recurse | Measure-Object -Property Length -Sum).Sum
+
+# Initialize progress variables
+$bytesCopied = 0
+$lastUpdate = Get-Date
+
+# Copy files with progress
+robocopy $sourceDrive $destinationDrive /MIR /J /NP /R:0 /W:0 /TEE /L /NJH /NJS /bytes |
+    ForEach-Object {
+        # Update bytes copied
+        if ($_ -match "^\s*(\d+)\s+(.*)") {
+            $bytesCopied += [int]$matches[1]
+        }
+
+        # Update progress bar every second
+        $now = Get-Date
+        if ($now - $lastUpdate -ge [TimeSpan]::FromSeconds(1)) {
+            $lastUpdate = $now
+            $progress = [math]::Min(100, ($bytesCopied / $totalSize) * 100)
+            Write-Progress -Activity "Copying files" -Status "$progress% Complete:" -PercentComplete $progress
+        }
+    }
+
+# Final message
+Write-Host "Copying complete."
